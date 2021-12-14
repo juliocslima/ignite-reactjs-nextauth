@@ -2,7 +2,7 @@ import { useContext, useEffect, useState } from "react";
 import { createContext, ReactNode } from "react";
 import Router from 'next/router';
 import { api } from "../services/api";
-import { setCookie, parseCookies } from 'nookies'
+import { setCookie, parseCookies, destroyCookie } from 'nookies'
 
 type User = {
   email: string;
@@ -17,6 +17,7 @@ type SignInCredentials = {
 
 type AuthContextData = {
   signIn(credentials: SignInCredentials): Promise<void>;
+  signOut: () => void;
   user?: User;
   isAuthenticated: boolean;
 }
@@ -27,6 +28,13 @@ type AuthProviderProps = {
 
 const AuthContext = createContext({} as AuthContextData);
 
+export function signOut() {
+  destroyCookie(undefined, 'nextauth.token');
+  destroyCookie(undefined, 'nextauth.refreshToken');
+
+  Router.push('/');
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User>();
   const isAuthenticated = !!user;
@@ -34,23 +42,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const { 'nextauth.token': token } = parseCookies();
 
-    if(token) {
-      api.get('/me').then(response => {
-        if(response) {
-          const { email, permissions, roles } = response?.data;
+    if (token) {
+      api.get('/me').then((response) => {
+        const { email, permissions, roles } = response.data;
 
-          setUser({
-            email, 
-            permissions,
-            roles,
-          });
-  
-          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        } 
-      }).catch(error => {
-        console.log(error.message)
-      });
-    }
+        setUser({
+          email,
+          permissions,
+          roles
+        });
+      }).catch(() => {
+        signOut();
+      })
+    }    
   }, []);
 
   async function signIn({ email, password }: SignInCredentials) {
@@ -76,6 +80,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         roles,
       });
 
+      api.defaults.headers['Authorization'] = `Bearer ${token}`;
+
       Router.push('/dashboard');
     }).catch(error => {
       console.log(error.message);
@@ -83,7 +89,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   return (
-    <AuthContext.Provider value={{ signIn, isAuthenticated, user }}>
+    <AuthContext.Provider value={{ signIn, signOut, isAuthenticated, user }}>
       {children}
     </AuthContext.Provider>
   );

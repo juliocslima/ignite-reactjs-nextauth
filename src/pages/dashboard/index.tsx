@@ -2,17 +2,26 @@ import { Box, Flex, Text } from "@chakra-ui/react";
 import { useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { api } from "../../services/api";
+import { parseCookies } from 'nookies';
+import Router from "next/router";
 
 export default function Dashboard() {
 
   const { user, isAuthenticated } = useAuth();
+  const { 'nextauth.token': token } = parseCookies();
 
   useEffect(() => {
-    api.get('/me').then((response) => {
-      if(response) {
-        console.log(response.data);
-      }
-    })
+    if(token) {
+      api.get('/me').then((response) => {
+        if(response) {
+          console.log(response.data);
+        }
+      }).catch((error) => {
+        console.log('Dashboard error: ' + error.message);
+      });
+    } else {
+      Router.push('/');
+    }
   }, []);
 
   return(
