@@ -1,9 +1,11 @@
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { useEffect } from "react";
-import { useAuth } from "../../contexts/AuthContext";
-import { api } from "../../services/api";
 import { parseCookies } from 'nookies';
 import Router from "next/router";
+import { useAuth } from "../../contexts/AuthContext";
+import { withSSRAuth } from "../../utils/withSSRAuth";
+import { api } from "../../services/apiClient";
+import { setupAPIClient } from "../../services/api";
 
 export default function Dashboard() {
 
@@ -39,3 +41,14 @@ export default function Dashboard() {
     </Flex>
   );
 }
+
+
+export const getServerSideProps = withSSRAuth(async (ctx) => {
+  const apiClient = setupAPIClient(ctx);
+  const response = await apiClient.get('/me');
+
+  console.log(response.data);
+  return {
+    props: {}
+  }
+})
